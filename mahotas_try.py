@@ -130,7 +130,7 @@ plt.show()
 
 #---------------------
 
-logical_not_add = np.logical_not(add_Regional_Thresholded)
+#logical_not_add = np.logical_not(add_Regional_Thresholded)
 #distance = ndi.morphology.distance_transform_edt(logical_not_add)
 
 distance_normal = ndi.morphology.distance_transform_edt(add_Regional_Thresholded)
@@ -141,7 +141,13 @@ distance_stretch_normal = mahotas.stretch(distance_normal)
 #surface = distance_stretch.max() - distance_stretch
 surface_normal = distance_stretch_normal.max() - distance_stretch_normal
 
-footprint = np.ones((3,3))
+
+#A large connectivity will suppress local maximum that are close together 
+#into a single maximum, but this will require more memory and time to run. 
+#A small connectivity will preserve local maximum that are close together,
+#but this can lead to oversegmentation.
+
+footprint = np.ones((8,8))     # <-- connectiviy
 
 #peaks = mahotas.regmax(distance_stretch, footprint)
 peaks_normal = mahotas.regmax(distance_stretch_normal, footprint)
@@ -152,7 +158,7 @@ peaks_normal = mahotas.regmax(distance_stretch_normal, footprint)
 # label_mahotas : This is also called connected component labeled, where the connectivity 
 # is defined by the structuring element Bc.
 ###
-markers_normal, NObjects_normal = mahotas.label(peaks_normal, np.ones((16, 16)))  
+markers_normal, NObjects_normal = mahotas.label(peaks_normal, footprint)  
 #watershed_surface, WL = mahotas.cwatershed(surface, markers ,return_lines = True)
 watershed_normal, WL_normal = mahotas.cwatershed(surface_normal, markers_normal ,return_lines = True)
 
@@ -189,3 +195,14 @@ color_watershed=color.label2rgb(watershed)
 print("colored watershed label matrix")
 plt.imshow(color_watershed )
 plt.show()
+
+
+"""import random
+from matplotlib import colors as c
+colors = map(plt.cm.jet,range(0, 256, 4))
+random.shuffle(colors)
+colors[0] = (0.,0.,0.,1.)
+rmap = c.ListedColormap(colors)
+print("colored watershed label matrix with random")
+plt.imshow(watershed, cmap=rmap)
+plt.show()"""
