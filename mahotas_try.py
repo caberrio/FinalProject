@@ -13,6 +13,7 @@ import numpy as np
 
 import Imadjust
 import RemoveSmallObjects
+import characterization
 
 
 img = cv2.imread('Snap-16290_Rhodamine_1.tif',0)
@@ -26,9 +27,6 @@ plt.show()
 
 # Clear Borders
 
-clear_borders_img = mahotas.labeled.remove_bordering(img)
-plt.imshow(clear_borders_img)
-plt.show()
 # Imadjust
 
 #image_imadjust = Imadjust.imadjust(img)
@@ -122,6 +120,11 @@ print("binary_threshold")
 plt.imshow(binary_threshold)
 plt.show()
 
+"""binary_clear = segmentation.clear_border(binary_threshold)
+print("binary_threshold_clear (?)")
+plt.imshow(binary_clear)
+plt.show()"""
+
 add_Regional_Thresholded = RegMax_remove_skimage + binary_threshold  
 #cv2.imshow( "Thresholded opening-closing by reconstruction ", Sum_images.astype(np.uint8) );         
 print("Thresholded opening-closing by reconstruction ")
@@ -196,6 +199,9 @@ print("colored watershed label matrix")
 plt.imshow(color_watershed )
 plt.show()
 
+cv2.imwrite('watershed.tif',watershed)
+
+properties = characterization.properties(watershed)
 
 """import random
 from matplotlib import colors as c
