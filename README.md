@@ -1,3 +1,10 @@
 "# FinalProject" 
 
-Using opencv, skimage , mahotas with python3
+# In development!
+
+### Libraries
+* [python 3]
+* [opencv]
+* [skimage]
+* [mahotas]
+
