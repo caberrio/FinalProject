@@ -1,8 +1,7 @@
 import cv2
 import mahotas
 
-from skimage import filters, util, img_as_ubyte, feature, exposure , segmentation, measure, color
-from skimage.color import rgb2grey
+from skimage import filters, util, exposure , segmentation, measure, color
 from skimage.morphology import disk, reconstruction, local_maxima, remove_small_objects
 
 import matplotlib.pyplot as plt
@@ -11,12 +10,11 @@ from scipy import ndimage as ndi
 
 import numpy as np
 
-import Imadjust
-import RemoveSmallObjects
-import characterization
-
+import MergeW
 
 img = cv2.imread('Snap-16290_Rhodamine_1.tif',0)
+#img = cv2.imread('Snap-16293_Rhodamine_1.tif',0)
+
 #img1 = cv2.imread('Snap-16290_Rhodamine_1.tif')
 #Grey_image = img_as_ubyte(rgb2grey(img1))
 #img_grey = cv2.cvtColor( img1, cv2.COLOR_RGB2GRAY)
@@ -120,10 +118,15 @@ print("binary_threshold")
 plt.imshow(binary_threshold)
 plt.show()
 
-"""binary_clear = segmentation.clear_border(binary_threshold)
+binary_clear = segmentation.clear_border(binary_threshold)
 print("binary_threshold_clear (?)")
 plt.imshow(binary_clear)
-plt.show()"""
+plt.show()
+
+substract = np.logical_xor(binary_threshold , binary_clear)
+print("substract (?)")
+plt.imshow(substract)
+plt.show()
 
 add_Regional_Thresholded = RegMax_remove_skimage + binary_threshold  
 #cv2.imshow( "Thresholded opening-closing by reconstruction ", Sum_images.astype(np.uint8) );         
@@ -165,6 +168,7 @@ markers_normal, NObjects_normal = mahotas.label(peaks_normal, footprint)
 #watershed_surface, WL = mahotas.cwatershed(surface, markers ,return_lines = True)
 watershed_normal, WL_normal = mahotas.cwatershed(surface_normal, markers_normal ,return_lines = True)
 
+#WLM = watershed_normal + WL_normal
 """print("watershed not(add_regional)")
 plt.imshow(watershed_surface)
 plt.show()
@@ -194,21 +198,48 @@ print("watershed connected regions")
 plt.imshow(watershed )
 plt.show()
 
+"""watershed_boundaries = segmentation.find_boundaries(watershed).astype(np.uint8)
+print("boundaries watershed")
+plt.imshow(watershed_boundaries, cmap = 'gray')
+plt.show()
+
+watershed_mark = segmentation.mark_boundaries(watershed.astype(np.float64),watershed_boundaries)
+print("marked watershed")
+plt.imshow(watershed_mark)
+plt.show()"""
+
 color_watershed=color.label2rgb(watershed)
 print("colored watershed label matrix")
 plt.imshow(color_watershed )
 plt.show()
 
-cv2.imwrite('watershed.tif',watershed)
+# --------- MergeW
 
-properties = characterization.properties(watershed)
+properties = MergeW.MergeWatershed(watershed,WL_normal,image_imadjust)
 
-"""import random
-from matplotlib import colors as c
-colors = map(plt.cm.jet,range(0, 256, 4))
-random.shuffle(colors)
-colors[0] = (0.,0.,0.,1.)
-rmap = c.ListedColormap(colors)
-print("colored watershed label matrix with random")
-plt.imshow(watershed, cmap=rmap)
-plt.show()"""
+Member = MergeW.isMember(watershed,properties[0])
+print("Filter watershed image")
+plt.imshow(Member)
+plt.show()
+
+new_img_adjust = image_imadjust * Member
+print("img_adjust * isMember")
+plt.imshow(new_img_adjust)
+plt.show()
+
+New_Member = properties[1] - Member
+print("Binarization - isMember")
+plt.imshow(New_Member)
+plt.show()
+
+Thresholded_newImg_adjust = filters.threshold_otsu(new_img_adjust)
+BT_newImg_adjust = util.invert(new_img_adjust <= Thresholded_newImg_adjust)
+
+FH_ndi = ndi.morphology.binary_fill_holes(BT_newImg_adjust)
+
+checking = np.logical_xor(BT_newImg_adjust , FH_ndi) # CHECK
+
+distance_chess = ndi.morphology.distance_transform_cdt(FH_ndi)
+distance_chess_stretc = mahotas.stretch(distance_chess)
+
+
