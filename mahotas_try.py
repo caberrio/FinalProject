@@ -11,6 +11,8 @@ from scipy import ndimage as ndi
 import numpy as np
 
 import MergeW
+import shrink2obj
+import Impose
 
 img = cv2.imread('Snap-16290_Rhodamine_1.tif',0)
 #img = cv2.imread('Snap-16293_Rhodamine_1.tif',0)
@@ -30,6 +32,7 @@ plt.show()
 #image_imadjust = Imadjust.imadjust(img)
 #image_contrast = mahotas.stretch(img)
 image_imadjust = exposure.rescale_intensity(img)
+#img_enhance = filters.rank.enhance_contrast(image_imadjust,disk(1))
 #cv2.imshow( "imadjust", image_imadjust );         
 print("imadjust")
 plt.imshow(image_imadjust)
@@ -37,9 +40,14 @@ plt.show()
 
 # Gradient Sobel
 sobel = filters.sobel(image_imadjust)
+gradientx, gradienty = np.gradient(image_imadjust)
+gradientImg = np.sqrt(gradientx**2 + gradienty**2)
+"""sobelx = cv2.Sobel(image_imadjust,cv2.CV_32F,1,0)
+sobely = cv2.Sobel(image_imadjust,cv2.CV_32F,0,1)
+magnitud = cv2.magnitude(sobelx,sobely)"""
 #cv2.imshow( "gradient (sobel)", sobel );         
-print("gradient (sobel)")
-plt.imshow(sobel)
+print("gradient")
+plt.imshow(gradientImg)
 plt.show()
 
 # opening-by-reconstruction 
@@ -167,8 +175,8 @@ peaks_normal = mahotas.regmax(distance_stretch_normal, footprint)
 markers_normal, NObjects_normal = mahotas.label(peaks_normal, footprint)  
 #watershed_surface, WL = mahotas.cwatershed(surface, markers ,return_lines = True)
 watershed_normal, WL_normal = mahotas.cwatershed(surface_normal, markers_normal ,return_lines = True)
+watershed_complete = MergeW.changeRL(watershed_normal,WL_normal)
 
-#WLM = watershed_normal + WL_normal
 """print("watershed not(add_regional)")
 plt.imshow(watershed_surface)
 plt.show()
@@ -177,13 +185,17 @@ print("watershed not(add_regional) lines")
 plt.imshow(WL)
 plt.show()"""
 
-print("watershed (add_regional)")
+print("watershed complete")
+plt.imshow(watershed_complete)
+plt.show()
+
+"""print("watershed (add_regional)")
 plt.imshow(watershed_normal)
 plt.show()
 
 print("watershed (add_regional) lines")
 plt.imshow(WL_normal)
-plt.show()
+plt.show()"""
 
 watershed_multiplication = watershed_normal * add_Regional_Thresholded
 print("multiplication watershed")
@@ -198,24 +210,50 @@ print("watershed connected regions")
 plt.imshow(watershed )
 plt.show()
 
-"""watershed_boundaries = segmentation.find_boundaries(watershed).astype(np.uint8)
-print("boundaries watershed")
-plt.imshow(watershed_boundaries, cmap = 'gray')
-plt.show()
-
-watershed_mark = segmentation.mark_boundaries(watershed.astype(np.float64),watershed_boundaries)
-print("marked watershed")
-plt.imshow(watershed_mark)
-plt.show()"""
 
 color_watershed=color.label2rgb(watershed)
 print("colored watershed label matrix")
 plt.imshow(color_watershed )
 plt.show()
 
+
+"""intregmax = RegMax_remove_skimage.astype(np.uint8)
+label_intregmax_ski = measure.label(intregmax)
+centroids = shrink2obj.find_centroids(label_intregmax_ski)
+logical_centroids = np.logical_or(WL_normal,centroids)
+gradient_watershed = Impose.imimposemin(gradientImg,logical_centroids)
+#-----down
+peaks_gra = mahotas.regmax(centroids, footprint)
+markers_gra, NObjects_gra = mahotas.label(peaks_gra, footprint)  
+watershed_gradient,lines= mahotas.cwatershed(gradient_watershed, markers_gra, return_lines = True)
+watershedGradient_complete = MergeW.changeRL(watershed_gradient,lines)
+
+print("watershedGradient_complete")
+plt.imshow(watershedGradient_complete)
+plt.show()
+
+watershed_multiplicationGrad = watershedGradient_complete * label_intregmax_ski
+print("multiplication watershed gradient")
+plt.imshow(watershed_multiplicationGrad)
+plt.show()
+
+### 
+# label skimage: Label connected regions of an integer array
+###
+watershed_Gradient = measure.label(watershed_multiplicationGrad)
+print("watershed gradient connected regions")
+plt.imshow(watershed_Gradient )
+plt.show()
+
+color_watershed_gradient=color.label2rgb(watershed_Gradient)
+print("colored watershed label matrix")
+plt.imshow(color_watershed_gradient )
+plt.show()"""
+
 # --------- MergeW
 
-properties = MergeW.MergeWatershed(watershed,WL_normal,image_imadjust)
+properties = MergeW.MergeWatershed(watershed,image_imadjust)
+
 
 Member = MergeW.isMember(watershed,properties[0])
 print("Filter watershed image")
@@ -228,9 +266,6 @@ plt.imshow(new_img_adjust)
 plt.show()
 
 New_Member = properties[1] - Member
-print("Binarization - isMember")
-plt.imshow(New_Member)
-plt.show()
 
 Thresholded_newImg_adjust = filters.threshold_otsu(new_img_adjust)
 BT_newImg_adjust = util.invert(new_img_adjust <= Thresholded_newImg_adjust)
@@ -239,7 +274,57 @@ FH_ndi = ndi.morphology.binary_fill_holes(BT_newImg_adjust)
 
 checking = np.logical_xor(BT_newImg_adjust , FH_ndi) # CHECK
 
+# ...........HERE DOWN
+
 distance_chess = ndi.morphology.distance_transform_cdt(FH_ndi)
+
 distance_chess_stretc = mahotas.stretch(distance_chess)
 
+"""distance_chess_stretc = -1 * distance_chess_stretc
+
+distance_CS_Inf = MergeW.change(distance_chess_stretc,~FH_ndi)
+np.savetxt("inf.csv",distance_CS_Inf,delimiter=",")"""
+
+surface_MW = distance_chess_stretc.max() - distance_chess_stretc
+
+peaks_MW = mahotas.regmax(distance_chess_stretc, footprint)
+
+markers_MW, NObjects_MW= mahotas.label(peaks_MW, footprint)
+
+watershed_MergeW, WL_MW = mahotas.cwatershed(surface_MW, markers_MW ,return_lines = True)
+
+watershed_complete_MW = MergeW.changeRL(watershed_MergeW,WL_MW)
+
+print("watershed")
+plt.imshow(watershed_complete_MW)
+plt.show()
+
+watershedMW_multiplication = watershed_MergeW * FH_ndi
+
+watershedMW = measure.label(watershedMW_multiplication)
+
+print("watershedMW")
+plt.imshow(watershedMW)
+plt.show()
+
+watershed_MW = np.copy(watershedMW)
+
+watershed_MW = MergeW.change2(watershedMW,watershed_MW)
+
+print("points+lines")
+plt.imshow(watershed_MW)
+plt.show()
+
+
+Thresholded_MW = filters.threshold_otsu(watershed_MW)
+BMerge = util.invert(watershed_MW <= Thresholded_MW)
+
+print("binarization")
+plt.imshow(BMerge)
+plt.show()
+
+remove_BMerge = remove_small_objects(BMerge,min_size= 10)
+print("remove binarization")
+plt.imshow(remove_BMerge)
+plt.show()
 

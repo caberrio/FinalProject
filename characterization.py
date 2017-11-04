@@ -8,7 +8,6 @@ def properties(src):
     
     areas = [r.area for r in regionprops]
     solidities = [r.solidity for r in regionprops]
-    eccentricities = [r.eccentricity for r in regionprops]
     _,NumObjects = measure.label(src,return_num =True)
     
-    return areas, solidities, eccentricities, NumObjects
+    return areas, solidities, NumObjects

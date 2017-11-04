@@ -3,14 +3,13 @@ import numpy as np
 from skimage import filters, util
 
 
-def MergeWatershed(src1,src1RL,src2):
+def MergeWatershed(src1,src2):
     
     # src1: label image/matrix
     # src2: original image
     
     temp1 = np.copy(src1)
     temp2 = np.copy(src2)
-    tempRL = np.copy(src1RL)
     Mat = []
     properties = characterization.properties(temp1)
     #mean_area = np.mean(properties[0])
@@ -23,13 +22,9 @@ def MergeWatershed(src1,src1RL,src2):
         for j in range (0,len(matches_index_solidity)):
             if matches_index_area[i] == matches_index_solidity[j]:
                 Mat.append(matches_index_area[i])
-                       
-    for x in range(0,tempRL.shape[0]):
-        for y in range(0,tempRL.shape[1]):
-            if tempRL[x,y] == False:
-                temp2[x][y] = 255
-            elif tempRL[x,y] == True:
-                temp2[x][y] = 0
+    
+    temp2[temp1!=0] = 255    
+
     
     Thresholded = filters.threshold_otsu(temp2)
     BT_temp2 = util.invert(temp2 <= Thresholded)
@@ -51,4 +46,38 @@ def isFound(A, B):
     if(A in B ):
         return True
     else: return False
+
+def changeRL(A,B):
+    # A : watershed matrix
+    # B : watershed riged lines
+    tempA = np.copy(A)
+    tempB = np.copy(B)
+    
+    for x in range(0,tempB.shape[0]):
+        for y in range(0,tempB.shape[1]):
+            if (tempB[x][y] == True):
+                tempA[x][y] = 0
+
+    return tempA
+
+def change(A,B):
+    # A : matrix Distance
+    # B : boolean matrix
+    
+    tempA = np.copy(A).astype(np.float)
+    tempB = np.copy(B)
+    
+    for x in range(0,tempA.shape[0]):
+        for y in range(0,tempA.shape[1]):
+            if (tempB[x][y] == False):
+                tempA[x][y] = -float('Inf')
+    return tempA
+    
+def change2(src1,src2):
+    temp1 = np.copy(src1)
+    temp2 = np.copy(src2)
+    
+    temp2[temp1!=0] = 255 
+    
+    return temp2
 
